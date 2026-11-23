@@ -1,6 +1,6 @@
 # Sistema de Voz Rodoviária para ETS2
 
-Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62 com o Mapa EAA**, sem SimHub. O painel permite escolher entre os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, ajustar a voz e os volumes e preencher os dados da viagem.
+Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62**, sem depender de um mapa específico. A normalização de cidades funciona com nomes de qualquer mapa brasileiro, incluindo **Mapa Eldorado, Mapa EAA, Rotas Brasil, RBR e Sul Paraná**. O painel permite escolher entre os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, ajustar a voz e os volumes e preencher os dados da viagem.
 
 ## Requisitos
 
@@ -26,6 +26,12 @@ py -3.15 -m pip install edge-tts static-ffmpeg pyinstaller
 O sistema não depende do SimHub. Para instalar o plugin de telemetria, coloque `scs-telemetry.dll` em `Euro Truck Simulator 2\bin\win_x64\plugins` (consulte acima o exemplo do caminho completo da instalação Steam).
 
 **Estado da leitura automática do jogo:** embora o painel ofereça os modos Passageiros e Leiteiro e o motor possa classificar automaticamente uma carga recebida em `--cargo`, esta versão ainda não consome a telemetria do `scs-telemetry.dll`. Portanto, não lê automaticamente a origem, o destino ou o horário atual do ETS2. Preencha esses dados no painel ou forneça-os ao motor pela linha de comando. Instalar a DLL, por si só, não conecta o plugin ao aplicativo.
+
+## Formatação de cidades
+
+`telemetria_ets2.py` expõe `limpar_cidade`, usada pelo motor nos nomes de origem e destino. Ela remove siglas das 27 UFs no final (por exemplo, `Sao_Paulo-SP`, `Santos (SP)` ou `Curitiba/PR`), normaliza underlines e hífens usados como separadores e corrige acentos de capitais e de cidades comuns nos mapas brasileiros. O dicionário inclui, entre outras, Juquiá, Pariquera-Açu, Cananéia, Apiaí, Capão Bonito, São Lourenço da Serra, Jacupiranga, Eldorado, Sete Barras e cidades do litoral sul paulista.
+
+Nomes que não estejam no dicionário também têm UFs e separadores normalizados e são preservados; a lista de acentos é extensível conforme novos mapas adicionem cidades.
 
 ## Executar o painel
 
@@ -57,15 +63,16 @@ No perfil automático, o motor classifica o texto passado em `--cargo`: termos c
 ## Compilar o painel
 
 ```powershell
-py -3.15 -m PyInstaller --noconfirm --onefile --windowed --name RodoviariaETS2 app_rodoviaria.py
+python -m PyInstaller --noconfirm --noconsole --onefile --distpath "$env:TEMP\py_dist" --workpath "$env:TEMP\py_build" --specpath "$env:TEMP" --name "RodoviariaETS2" app_rodoviaria.py
+Copy-Item "$env:TEMP\py_dist\RodoviariaETS2.exe" ".\RodoviariaETS2.exe" -Force
 ```
 
-O executável é criado em `dist\RodoviariaETS2.exe`. Para usar o painel compilado, mantenha `falar_rodoviaria.py`, `telemetria_ets2.py`, `config_rodoviaria.json`, `campainha.wav` e um áudio de fundo junto ao executável. Python e as dependências `edge-tts` e `static-ffmpeg` também precisam estar instalados e disponíveis no PATH, pois o painel inicia o motor como um script separado.
+O executável é copiado para a raiz como `RodoviariaETS2.exe`. Feche instâncias abertas antes de substituí-lo. Para usar o painel compilado, mantenha `falar_rodoviaria.py`, `telemetria_ets2.py`, `config_rodoviaria.json`, `campainha.wav` e um áudio de fundo junto ao executável. Python e as dependências `edge-tts` e `static-ffmpeg` também precisam estar instalados e disponíveis no PATH, pois o painel inicia o motor como um script separado.
 
 ## Arquivos principais
 
 - `app_rodoviaria.py`: painel gráfico.
 - `falar_rodoviaria.py`: geração, mixagem e reprodução dos anúncios.
-- `telemetria_ets2.py`: classificação do texto da carga para escolher o perfil automático; não lê dados do jogo.
+- `telemetria_ets2.py`: formatação de cidades e classificação do texto da carga; não lê dados do jogo.
 - `gerar_audios.py`: geração dos arquivos WAV de campainha e áudio de fundo.
 - `campainha.wav` e `fundo_rodoviaria.wav`: efeitos sonoros usados na mixagem.

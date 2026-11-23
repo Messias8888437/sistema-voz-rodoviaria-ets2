@@ -15,7 +15,7 @@ import edge_tts
 import static_ffmpeg
 import winsound
 
-from telemetria_ets2 import detectar_modo
+from telemetria_ets2 import detectar_modo, limpar_cidade
 
 PASTA = Path(__file__).resolve().parent
 ARQUIVO_CONFIG = PASTA / "config_rodoviaria.json"
@@ -81,8 +81,8 @@ def localizar_fundo() -> Path:
 
 
 def montar_anuncio_rodoviaria(origem: str, destino: str, hora: str, plataforma: str) -> str:
-    origem = origem.strip() or "origem não informada"
-    destino = destino.strip() or "seu destino"
+    origem = limpar_cidade(origem) or "origem não informada"
+    destino = limpar_cidade(destino) or "seu destino"
     hora = hora.strip() or "agora"
     plataforma = plataforma.strip() or "não informada"
     return (
@@ -92,8 +92,8 @@ def montar_anuncio_rodoviaria(origem: str, destino: str, hora: str, plataforma: 
 
 
 def montar_anuncio_leiteiro(origem: str, destino: str, hora: str) -> str:
-    origem = origem.strip() or "origem não informada"
-    destino = destino.strip() or "destino não informado"
+    origem = limpar_cidade(origem) or "origem não informada"
+    destino = limpar_cidade(destino) or "destino não informado"
     hora = hora.strip() or "agora"
     return (
         f"Atenção, operação leiteira iniciada. Saindo de {origem}, com destino a {destino}, "
