@@ -9,6 +9,8 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
+from telemetria_ets2 import TelemetryReader, TelemetrySnapshot, detectar_modo, limpar_cidade
+
 PASTA = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 CONFIG_PATH = PASTA / "config_rodoviaria.json"
 ENGINE_PATH = PASTA / "falar_rodoviaria.py"
@@ -23,7 +25,7 @@ PERFIS_REVERSO = {valor: nome for nome, valor in PERFIS.items()}
 CONFIG_PADRAO: dict[str, Any] = {
     "voice": "pt-BR-FranciscaNeural", "voice_volume": 1.75,
     "background_volume": 0.60, "bell_volume": 1.0, "echo": True,
-    "profile": "automatico",
+    "profile": "automatico", "auto_announce": True,
 }
 BG = "#09090b"
 PANEL = "#18181b"
@@ -44,6 +46,8 @@ def load_config() -> dict[str, Any]:
     config.update(data)
     if not isinstance(config["profile"], str) or config["profile"] not in PERFIS_REVERSO:
         raise ValueError("O perfil salvo na configuração não é suportado.")
+    if not isinstance(config["auto_announce"], bool):
+        raise ValueError("A opção auto_announce precisa ser true ou false.")
     if config["voice"] not in VOZES_REVERSO:
         raise ValueError("A voz salva na configuração não é suportada.")
     for key in ("voice_volume", "background_volume", "bell_volume"):
@@ -86,7 +90,7 @@ def python_command() -> list[str]:
 class AppRodoviaria:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Central Rodoviária • ETS2 / Mapa EAA")
+        self.root.title("Central Rodoviária • ETS2 / Mapas Brasileiros")
         self.root.geometry("760x940")
         self.root.minsize(700, 860)
         self.root.configure(bg=BG)
@@ -102,11 +106,26 @@ class AppRodoviaria:
         self.time = tk.StringVar(value="19 horas")
         self.platform = tk.StringVar(value="4")
         self.profile = tk.StringVar(value=PERFIS_REVERSO[self.config["profile"]])
+        self.auto_announce = tk.BooleanVar(value=self.config["auto_announce"])
         self.voice = tk.StringVar(value=VOZES_REVERSO[self.config["voice"]])
         self.echo = tk.BooleanVar(value=self.config["echo"])
         self.status = tk.StringVar(value="PRONTO PARA ANUNCIAR")
         self.last_call = tk.StringVar(value="Nenhuma chamada realizada nesta sessão")
         self.audio_status = tk.StringVar()
+        self.telemetry_status = tk.StringVar(value="PROCURANDO PLUGIN SCS...")
+        self.telemetry_details = tk.StringVar(
+            value="Abra o ETS2 com SHETS2Telemetry_x64.dll instalado."
+        )
+        self.telemetry_reader = TelemetryReader()
+        self._telemetry_snapshot: TelemetrySnapshot | None = None
+        self._last_job_active = False
+        self._last_job_signature: tuple[str, str, str, int] | None = None
+        self._last_job_start_time: int | None = None
+        self._auto_announcement_pending = False
+        self._auto_origin = ""
+        self._auto_destination = ""
+        self._auto_time = ""
+        self._telemetry_after: str | None = None
         self.volume_vars = {
             key: tk.DoubleVar(value=self.config[key])
             for key in ("voice_volume", "background_volume", "bell_volume")
@@ -114,6 +133,8 @@ class AppRodoviaria:
         self.setup_styles()
         self.build_ui()
         self.update_audio_label()
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self._telemetry_after = self.root.after(500, self.poll_telemetry)
 
     def setup_styles(self) -> None:
         style = ttk.Style(self.root)
@@ -137,7 +158,7 @@ class AppRodoviaria:
         header = tk.Frame(self.root, bg=BG)
         header.pack(fill="x", padx=28, pady=(20, 14))
         tk.Label(header, text="CENTRAL DE EMBARQUE", bg=BG, fg=FG, font=("Segoe UI", 19, "bold")).pack(anchor="w")
-        tk.Label(header, text="ETS2 1.62  •  MAPA EAA  •  SISTEMA DE VOZ", bg=BG, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        tk.Label(header, text="ETS2 1.62  •  MAPAS BRASILEIROS  •  SISTEMA DE VOZ", bg=BG, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
         profile_box = tk.Frame(header, bg=BG)
         profile_box.pack(side="right", anchor="e", padx=(12, 0))
         tk.Label(profile_box, text="PERFIL DE ANÚNCIO", bg=BG, fg=MUTED, font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 5))
@@ -155,6 +176,26 @@ class AppRodoviaria:
         tk.Label(status_row, text="●", bg=PANEL, fg="#4ade80", font=("Segoe UI", 16)).pack(side="left", padx=(0, 9))
         tk.Label(status_row, textvariable=self.status, bg=PANEL, fg="#4ade80", font=("Consolas", 12, "bold")).pack(side="left")
         tk.Label(led, textvariable=self.last_call, bg=PANEL, fg="#d4d4d8", font=("Consolas", 10), wraplength=660, justify="left").pack(anchor="w", pady=(8, 0))
+
+        telemetry = self.panel(self.root)
+        telemetry.pack(fill="x", padx=28, pady=6)
+        self.section_title(
+            telemetry, "Conexão direta com o ETS2",
+            "Lê a memória compartilhada pelo plugin SCS, sem usar o SimHub.",
+        )
+        tk.Label(
+            telemetry, textvariable=self.telemetry_status, bg=PANEL, fg=ACCENT,
+            font=("Consolas", 10, "bold"),
+        ).pack(anchor="w")
+        tk.Label(
+            telemetry, textvariable=self.telemetry_details, bg=PANEL, fg=MUTED,
+            font=("Segoe UI", 9), wraplength=660, justify="left",
+        ).pack(anchor="w", pady=(4, 5))
+        ttk.Checkbutton(
+            telemetry, text="Anunciar automaticamente ao iniciar um trabalho",
+            variable=self.auto_announce, command=self.change_auto_announce,
+            style="Dark.TCheckbutton",
+        ).pack(anchor="w")
 
         manual = self.panel(self.root)
         manual.pack(fill="x", padx=28, pady=6)
@@ -195,11 +236,11 @@ class AppRodoviaria:
 
         mixer = self.panel(self.root)
         mixer.pack(fill="x", padx=28, pady=6)
-        self.section_title(mixer, "Mixer de volumes", "Ajustes salvos imediatamente para o aplicativo e o SimHub.")
+        self.section_title(mixer, "Mixer de volumes", "Ajustes salvos imediatamente para os anúncios.")
         self.add_slider(mixer, "Volume da voz", "voice_volume")
         self.add_slider(mixer, "Volume do som de ré / ônibus", "background_volume")
         self.add_slider(mixer, "Volume da campainha", "bell_volume")
-        tk.Label(self.root, text="Configuração compartilhada com o motor de anúncios do SimHub.", bg=BG, fg=MUTED, font=("Segoe UI", 8)).pack(pady=(7, 12))
+        tk.Label(self.root, text="Configuração compartilhada com o motor de anúncios.", bg=BG, fg=MUTED, font=("Segoe UI", 8)).pack(pady=(7, 12))
 
     def add_field(self, parent: tk.Widget, title: str, variable: tk.StringVar, row: int, column: int) -> None:
         cell = tk.Frame(parent, bg=PANEL)
@@ -250,6 +291,99 @@ class AppRodoviaria:
         self.config["profile"] = PERFIS[self.profile.get()]
         self.save_settings()
 
+    def change_auto_announce(self) -> None:
+        self.config["auto_announce"] = self.auto_announce.get()
+        self.save_settings()
+
+    def poll_telemetry(self) -> None:
+        try:
+            snapshot = self.telemetry_reader.read()
+        except (OSError, ValueError) as error:
+            self.telemetry_reader.close()
+            self._telemetry_snapshot = None
+            self._last_job_active = False
+            self._last_job_signature = None
+            self._last_job_start_time = None
+            self._auto_announcement_pending = False
+            self.telemetry_status.set("ERRO NA CONEXÃO COM O PLUGIN")
+            self.telemetry_details.set(str(error))
+        else:
+            if snapshot is None:
+                self._telemetry_snapshot = None
+                self._last_job_active = False
+                self._last_job_signature = None
+                self._last_job_start_time = None
+                self._auto_announcement_pending = False
+                self.telemetry_status.set("AGUARDANDO ETS2 E PLUGIN SCS")
+                self.telemetry_details.set(
+                    "Instale SHETS2Telemetry_x64.dll em "
+                    "Euro Truck Simulator 2\\bin\\win_x64\\plugins e abra o jogo."
+                )
+            else:
+                self.update_telemetry(snapshot)
+        if self.root.winfo_exists():
+            self._telemetry_after = self.root.after(1000, self.poll_telemetry)
+
+    def update_telemetry(self, snapshot: TelemetrySnapshot) -> None:
+        self._telemetry_snapshot = snapshot
+        origem = limpar_cidade(snapshot.city_source)
+        destino = limpar_cidade(snapshot.city_destination)
+        modo = detectar_modo(snapshot.cargo)
+        nome_modo = "Leiteiro (Coleta de Leite)" if modo == "leiteiro" else "Passageiros (Rodoviária)"
+        situacao = "TRABALHO ATIVO" if snapshot.on_job else "CONECTADO, SEM TRABALHO ATIVO"
+        self.telemetry_status.set(f"ETS2 CONECTADO • {situacao}")
+        self.telemetry_details.set(
+            f"{origem or 'Origem indisponível'} → {destino or 'Destino indisponível'}"
+            f" • {snapshot.game_time} • {nome_modo}"
+            f" • Carga: {snapshot.cargo or 'não informada'}"
+        )
+
+        assinatura = (
+            origem, destino, snapshot.cargo, snapshot.job_start_time,
+        )
+        inicio_trabalho = snapshot.on_job and (
+            not self._last_job_active
+            or (
+                self._last_job_start_time not in (None, 0)
+                and snapshot.job_start_time not in (0, self._last_job_start_time)
+            )
+        )
+        dados_trabalho_alterados = snapshot.on_job and assinatura != self._last_job_signature
+        if snapshot.on_job and self.auto_announce.get() and inicio_trabalho:
+            self._auto_announcement_pending = True
+        elif not snapshot.on_job:
+            self._auto_announcement_pending = False
+
+        if snapshot.on_job:
+            if inicio_trabalho or self.origin.get() in ("", self._auto_origin):
+                self.origin.set(origem)
+                self._auto_origin = origem
+            if inicio_trabalho or self.destination.get() in ("", self._auto_destination):
+                self.destination.set(destino)
+                self._auto_destination = destino
+            if inicio_trabalho or self.time.get() in ("", self._auto_time):
+                self.time.set(snapshot.game_time)
+                self._auto_time = snapshot.game_time
+            elif dados_trabalho_alterados:
+                self._auto_time = snapshot.game_time
+
+        self._last_job_active = snapshot.on_job
+        self._last_job_signature = assinatura if snapshot.on_job else None
+        self._last_job_start_time = snapshot.job_start_time if snapshot.on_job else None
+        if (
+            self._auto_announcement_pending
+            and (origem or destino)
+            and self.announce_button["state"] != tk.DISABLED
+        ):
+            self.start_announcement(snapshot)
+            self._auto_announcement_pending = False
+
+    def close(self) -> None:
+        if self._telemetry_after is not None:
+            self.root.after_cancel(self._telemetry_after)
+        self.telemetry_reader.close()
+        self.root.destroy()
+
     def import_audio(self) -> None:
         source = filedialog.askopenfilename(
             parent=self.root, title="Escolha o áudio de fundo",
@@ -275,15 +409,22 @@ class AppRodoviaria:
         self.update_audio_label()
         self.status.set("ÁUDIO DE FUNDO ATUALIZADO")
 
-    def start_announcement(self) -> None:
+    def start_announcement(self, telemetry: TelemetrySnapshot | None = None) -> None:
         if not ENGINE_PATH.is_file():
             messagebox.showerror("Motor não encontrado", f"Arquivo ausente: {ENGINE_PATH}", parent=self.root)
             return
+        if self.announce_button["state"] == tk.DISABLED:
+            return
         data = {
-            "origem": self.origin.get().strip(), "destino": self.destination.get().strip(),
-            "hora": self.time.get().strip(), "plataforma": self.platform.get().strip(),
+            "origem": limpar_cidade(telemetry.city_source) if telemetry else self.origin.get().strip(),
+            "destino": limpar_cidade(telemetry.city_destination) if telemetry else self.destination.get().strip(),
+            "hora": telemetry.game_time if telemetry else self.time.get().strip(),
+            "plataforma": self.platform.get().strip(),
             "voz": VOZES[self.voice.get()],
             "modo": PERFIS[self.profile.get()] if PERFIS[self.profile.get()] != "automatico" else "",
+            "cargo": telemetry.cargo if telemetry else (
+                self._telemetry_snapshot.cargo if self._telemetry_snapshot else ""
+            ),
         }
         call = f"{data['origem'] or 'Origem não informada'} → {data['destino'] or 'Destino não informado'} · {data['hora'] or 'Agora'} · Plataforma {data['plataforma'] or '—'}"
         self.announce_button.config(state="disabled", text="GERANDO E REPRODUZINDO...")
@@ -294,7 +435,8 @@ class AppRodoviaria:
         try:
             command = python_command() + [
                 str(ENGINE_PATH), "--origem", data["origem"], "--destino", data["destino"],
-                "--hora", data["hora"], "--plataforma", data["plataforma"], "--voz", data["voz"],
+                "--hora", data["hora"], "--plataforma", data["plataforma"],
+                "--voz", data["voz"], "--cargo", data["cargo"],
             ]
             if data["modo"]:
                 command.extend(["--modo", data["modo"]])
