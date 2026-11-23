@@ -1,6 +1,6 @@
 # Sistema de Voz Rodoviária para ETS2
 
-Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62**, sem depender de um mapa específico. A normalização de cidades funciona com nomes de qualquer mapa brasileiro, incluindo **Mapa Eldorado, Mapa EAA, Rotas Brasil, RBR e Sul Paraná**. O painel permite escolher entre os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, ajustar a voz e os volumes e preencher os dados da viagem.
+Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62**, sem depender de um mapa específico ou do SimHub. A normalização de cidades foi preparada para nomes dos mapas brasileiros **Mapa Eldorado, Mapa EAA, Rotas Brasil e RBR**, além de outros mapas. O painel oferece os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, além de controles de voz e volume.
 
 ## Requisitos
 
@@ -42,6 +42,12 @@ python app_rodoviaria.py
 ```
 
 O painel salva preferências em `config_rodoviaria.json`. O anúncio usa `falar_rodoviaria.py`, que gera a locução com edge-tts, mistura o áudio com FFmpeg e reproduz o resultado. É necessária uma conexão com o serviço edge-tts. Mantenha `campainha.wav` e um áudio de fundo (`fundo_rodoviaria.wav` ou `fundo_rodoviaria.mp3`) ao lado dos scripts.
+
+### Executar `RodoviariaETS2.exe`
+
+Baixe `RodoviariaETS2.exe` na seção **Releases** do GitHub e coloque-o na mesma pasta que `falar_rodoviaria.py`, `telemetria_ets2.py`, `config_rodoviaria.json`, `campainha.wav` e `fundo_rodoviaria.wav` (ou `fundo_rodoviaria.mp3`). Abra o executável para iniciar o painel. Como o programa chama o motor Python como processo separado, Python 3.15+, `edge-tts` e `static-ffmpeg` precisam estar instalados e disponíveis no PATH. É necessária conexão com a internet para gerar a voz.
+
+O suporte aos mapas é independente do SimHub e do mapa carregado: o motor normaliza os nomes de origem e destino informados, incluindo separadores, siglas de estados e acentos conhecidos. No painel, informe origem, destino, horário e plataforma; não há leitura automática desses dados do jogo nesta versão. Também é possível escolher um modo no painel ou usar o perfil automático quando a carga é fornecida ao motor por `--cargo`.
 
 Exemplo de chamada direta do motor:
 
