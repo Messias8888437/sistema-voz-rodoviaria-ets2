@@ -1,13 +1,13 @@
 # Sistema de Voz Rodoviária para ETS2
 
-Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62 com o Mapa EAA**. O painel permite escolher o perfil de anúncio, ajustar a voz e os volumes e preencher manualmente os dados da viagem.
+Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62 com o Mapa EAA**, sem SimHub. O painel permite escolher entre os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, ajustar a voz e os volumes e preencher os dados da viagem.
 
 ## Requisitos
 
 - Windows e Python **3.15 ou superior**, com `tkinter`.
 - Pacotes Python `edge-tts` e `static-ffmpeg`.
 - PyInstaller para compilar o executável.
-- O plugin de telemetria `scs-telemetry.dll` para obter dados do jogo. O plugin é distribuído separadamente.
+- O plugin de telemetria `scs-telemetry.dll`, distribuído separadamente, caso queira instalá-lo para uso com ferramentas compatíveis.
 
 Instale as dependências:
 
@@ -23,7 +23,9 @@ py -3.15 -m pip install edge-tts static-ffmpeg pyinstaller
 3. Obtenha `scs-telemetry.dll` da distribuição confiável do plugin e copie o arquivo para essa pasta.
 4. Inicie o jogo novamente. Consulte a documentação do fornecedor do plugin para opções adicionais de instalação e funcionamento.
 
-**Limitação desta versão:** instalar a DLL, por si só, não conecta a telemetria ao aplicativo. O código deste repositório ainda não lê origem, destino, horário ou carga do jogo nem recebe notificações de início de trabalho. O painel solicita origem, destino e horário manualmente; o motor de anúncios aceita esses valores por argumentos de linha de comando.
+O sistema não depende do SimHub. Para instalar o plugin de telemetria, coloque `scs-telemetry.dll` em `Euro Truck Simulator 2\bin\win_x64\plugins` (consulte acima o exemplo do caminho completo da instalação Steam).
+
+**Estado da leitura automática do jogo:** embora o painel ofereça os modos Passageiros e Leiteiro e o motor possa classificar automaticamente uma carga recebida em `--cargo`, esta versão ainda não consome a telemetria do `scs-telemetry.dll`. Portanto, não lê automaticamente a origem, o destino ou o horário atual do ETS2. Preencha esses dados no painel ou forneça-os ao motor pela linha de comando. Instalar a DLL, por si só, não conecta o plugin ao aplicativo.
 
 ## Executar o painel
 
@@ -50,7 +52,7 @@ python falar_rodoviaria.py --origem "São Paulo" --destino "Campinas" --hora "19
 python falar_rodoviaria.py --origem "Fazenda A" --destino "Laticínio B" --hora "19 horas" --modo leiteiro
 ```
 
-No perfil automático, o motor classifica o texto passado em `--cargo`: termos como `leite`, `milk`, `laticin`, `queijo`, `iogurte` ou `tanque` selecionam o modo leiteiro; outros valores selecionam o modo rodoviária. Para uma chamada automática, forneça também `--cargo`. Esta classificação não lê o jogo por conta própria.
+No perfil automático, o motor classifica o texto passado em `--cargo`: termos como `leite`, `milk`, `laticin`, `queijo`, `iogurte` ou `tanque` selecionam o modo leiteiro; outros valores selecionam o modo rodoviária. Para uma chamada automática, forneça também `--cargo`. Essa seleção de modo funciona sem SimHub, mas não lê a carga nem os dados da viagem do jogo nesta versão.
 
 ## Compilar o painel
 
@@ -64,6 +66,6 @@ O executável é criado em `dist\RodoviariaETS2.exe`. Para usar o painel compila
 
 - `app_rodoviaria.py`: painel gráfico.
 - `falar_rodoviaria.py`: geração, mixagem e reprodução dos anúncios.
-- `telemetria_ets2.py`: classificação de carga para escolher o perfil automático; não lê dados do jogo.
+- `telemetria_ets2.py`: classificação do texto da carga para escolher o perfil automático; não lê dados do jogo.
 - `gerar_audios.py`: geração dos arquivos WAV de campainha e áudio de fundo.
 - `campainha.wav` e `fundo_rodoviaria.wav`: efeitos sonoros usados na mixagem.
