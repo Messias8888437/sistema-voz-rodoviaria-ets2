@@ -1,0 +1,8 @@
+*.exe
+*.log
+fala_rodoviaria.wav
+fala_crua.mp3
+__pycache__/
+build/
+dist/
+*.spec

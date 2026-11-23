@@ -1,0 +1,7 @@
+{
+  "voice": "pt-BR-FranciscaNeural",
+  "voice_volume": 1.75,
+  "background_volume": 1.0,
+  "bell_volume": 1.0,
+  "echo": false
+}
