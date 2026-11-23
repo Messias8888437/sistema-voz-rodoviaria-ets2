@@ -14,9 +14,16 @@ CONFIG_PATH = PASTA / "config_rodoviaria.json"
 ENGINE_PATH = PASTA / "falar_rodoviaria.py"
 VOZES = {"Francisca (Feminina)": "pt-BR-FranciscaNeural", "Antonio (Masculino)": "pt-BR-AntonioNeural"}
 VOZES_REVERSO = {valor: nome for nome, valor in VOZES.items()}
+PERFIS = {
+    "Automático (Detecta Passageiros / Leiteiro)": "automatico",
+    "Forçar Modo Passageiros (Rodoviária)": "rodoviaria",
+    "Forçar Modo Leiteiro (Coleta de Leite)": "leiteiro",
+}
+PERFIS_REVERSO = {valor: nome for nome, valor in PERFIS.items()}
 CONFIG_PADRAO: dict[str, Any] = {
     "voice": "pt-BR-FranciscaNeural", "voice_volume": 1.75,
     "background_volume": 0.60, "bell_volume": 1.0, "echo": True,
+    "profile": "automatico",
 }
 BG = "#09090b"
 PANEL = "#18181b"
@@ -35,6 +42,8 @@ def load_config() -> dict[str, Any]:
         raise ValueError("config_rodoviaria.json deve conter um objeto JSON.")
     config = CONFIG_PADRAO.copy()
     config.update(data)
+    if not isinstance(config["profile"], str) or config["profile"] not in PERFIS_REVERSO:
+        raise ValueError("O perfil salvo na configuração não é suportado.")
     if config["voice"] not in VOZES_REVERSO:
         raise ValueError("A voz salva na configuração não é suportada.")
     for key in ("voice_volume", "background_volume", "bell_volume"):
@@ -92,6 +101,7 @@ class AppRodoviaria:
         self.destination = tk.StringVar()
         self.time = tk.StringVar(value="19 horas")
         self.platform = tk.StringVar(value="4")
+        self.profile = tk.StringVar(value=PERFIS_REVERSO[self.config["profile"]])
         self.voice = tk.StringVar(value=VOZES_REVERSO[self.config["voice"]])
         self.echo = tk.BooleanVar(value=self.config["echo"])
         self.status = tk.StringVar(value="PRONTO PARA ANUNCIAR")
@@ -128,6 +138,15 @@ class AppRodoviaria:
         header.pack(fill="x", padx=28, pady=(20, 14))
         tk.Label(header, text="CENTRAL DE EMBARQUE", bg=BG, fg=FG, font=("Segoe UI", 19, "bold")).pack(anchor="w")
         tk.Label(header, text="ETS2 1.62  •  MAPA EAA  •  SISTEMA DE VOZ", bg=BG, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        profile_box = tk.Frame(header, bg=BG)
+        profile_box.pack(side="right", anchor="e", padx=(12, 0))
+        tk.Label(profile_box, text="PERFIL DE ANÚNCIO", bg=BG, fg=MUTED, font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 5))
+        profile_chooser = ttk.Combobox(
+            profile_box, textvariable=self.profile, values=list(PERFIS),
+            state="readonly", style="Dark.TCombobox", width=42,
+        )
+        profile_chooser.pack(anchor="e")
+        profile_chooser.bind("<<ComboboxSelected>>", self.change_profile)
 
         led = self.panel(self.root)
         led.pack(fill="x", padx=28, pady=(0, 10))
@@ -225,6 +244,12 @@ class AppRodoviaria:
         self.config["echo"] = self.echo.get()
         self.save_settings()
 
+    def change_profile(self, event: tk.Event | None = None) -> None:
+        if event is None:
+            return
+        self.config["profile"] = PERFIS[self.profile.get()]
+        self.save_settings()
+
     def import_audio(self) -> None:
         source = filedialog.askopenfilename(
             parent=self.root, title="Escolha o áudio de fundo",
@@ -258,6 +283,7 @@ class AppRodoviaria:
             "origem": self.origin.get().strip(), "destino": self.destination.get().strip(),
             "hora": self.time.get().strip(), "plataforma": self.platform.get().strip(),
             "voz": VOZES[self.voice.get()],
+            "modo": PERFIS[self.profile.get()] if PERFIS[self.profile.get()] != "automatico" else "",
         }
         call = f"{data['origem'] or 'Origem não informada'} → {data['destino'] or 'Destino não informado'} · {data['hora'] or 'Agora'} · Plataforma {data['plataforma'] or '—'}"
         self.announce_button.config(state="disabled", text="GERANDO E REPRODUZINDO...")
@@ -270,6 +296,8 @@ class AppRodoviaria:
                 str(ENGINE_PATH), "--origem", data["origem"], "--destino", data["destino"],
                 "--hora", data["hora"], "--plataforma", data["plataforma"], "--voz", data["voz"],
             ]
+            if data["modo"]:
+                command.extend(["--modo", data["modo"]])
             result = subprocess.run(
                 command, cwd=PASTA, capture_output=True, text=True, encoding="utf-8",
                 errors="replace", check=False,

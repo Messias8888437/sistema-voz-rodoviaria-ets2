@@ -15,9 +15,12 @@ import edge_tts
 import static_ffmpeg
 import winsound
 
+from telemetria_ets2 import detectar_modo
+
 PASTA = Path(__file__).resolve().parent
 ARQUIVO_CONFIG = PASTA / "config_rodoviaria.json"
 VOZES = ("pt-BR-FranciscaNeural", "pt-BR-AntonioNeural")
+PERFIS = ("automatico", "rodoviaria", "leiteiro")
 VELOCIDADE = "+0%"
 CONFIG_PADRAO: dict[str, Any] = {
     "voice": "pt-BR-FranciscaNeural",
@@ -25,6 +28,7 @@ CONFIG_PADRAO: dict[str, Any] = {
     "background_volume": 0.60,
     "bell_volume": 1.0,
     "echo": True,
+    "profile": "automatico",
 }
 logging.basicConfig(
     filename=PASTA / "falar_rodoviaria.log",
@@ -45,6 +49,8 @@ def carregar_configuracao() -> dict[str, Any]:
         raise ValueError("config_rodoviaria.json deve conter um objeto JSON.")
     config = CONFIG_PADRAO.copy()
     config.update(dados)
+    if not isinstance(config["profile"], str) or config["profile"] not in PERFIS:
+        raise ValueError(f"Perfil não suportado na configuração: {config['profile']!r}.")
     if config["voice"] not in VOZES:
         raise ValueError(f"Voz não suportada na configuração: {config['voice']!r}.")
     for chave in ("voice_volume", "background_volume", "bell_volume"):
@@ -74,15 +80,24 @@ def localizar_fundo() -> Path:
     raise FileNotFoundError("Áudio de fundo ausente: importe um WAV ou MP3 pelo aplicativo.")
 
 
-def montar_anuncio(origem: str, destino: str, hora: str, plataforma: str) -> str:
-    origem = origem.strip()
-    trecho_origem = f" na rodoviária de {origem}," if origem else ""
+def montar_anuncio_rodoviaria(origem: str, destino: str, hora: str, plataforma: str) -> str:
+    origem = origem.strip() or "origem não informada"
     destino = destino.strip() or "seu destino"
     hora = hora.strip() or "agora"
     plataforma = plataforma.strip() or "não informada"
     return (
-        f"Atenção, senhores passageiros{trecho_origem} na plataforma {plataforma}, "
+        f"Atenção, senhores passageiros na rodoviária de {origem}, na plataforma {plataforma}, "
         f"para o destino {destino}, às {hora}. O embarque está disponível e aberto."
+    )
+
+
+def montar_anuncio_leiteiro(origem: str, destino: str, hora: str) -> str:
+    origem = origem.strip() or "origem não informada"
+    destino = destino.strip() or "destino não informado"
+    hora = hora.strip() or "agora"
+    return (
+        f"Atenção, operação leiteira iniciada. Saindo de {origem}, com destino a {destino}, "
+        f"às {hora}. Carga de leite liberada para transporte."
     )
 
 
@@ -115,18 +130,44 @@ async def gerar_voz(texto: str, voz: str, arquivo: Path) -> None:
     await comunicador.save(str(arquivo))
 
 
-def mixar_audio(voz: Path, destino: Path, config: dict[str, Any], temporario: Path) -> None:
+def mixar_audio(
+    voz: Path, destino: Path, config: dict[str, Any], temporario: Path, modo: str
+) -> None:
     static_ffmpeg.add_paths()
     ffmpeg = shutil.which("ffmpeg")
     ffprobe = shutil.which("ffprobe")
     if not ffmpeg or not ffprobe:
         raise RuntimeError("FFmpeg/FFprobe do pacote static-ffmpeg não foram encontrados.")
 
+    if modo == "leiteiro":
+        bip = temporario / "bip_radio.wav"
+        executar_ffmpeg([
+            ffmpeg, "-y", "-f", "lavfi", "-i",
+            "sine=frequency=1250:duration=0.22:sample_rate=44100",
+            "-af", "volume=0.35,afade=t=out:st=0.12:d=0.1",
+            "-ac", "2", "-c:a", "pcm_s16le", str(bip),
+        ])
+        frente = temporario / "frente.wav"
+        filtros_voz = "highpass=f=120"
+        if config["echo"]:
+            filtros_voz += ",aecho=0.8:0.88:85|170:0.16|0.07"
+        filtro_frente = (
+            "[0:a]aresample=44100,aformat=channel_layouts=stereo[beep];"
+            f"[1:a]aresample=44100,aformat=channel_layouts=stereo,"
+            f"{filtros_voz},volume={config['voice_volume']}[voz];"
+            "[beep][voz]concat=n=2:v=0:a=1[out]"
+        )
+        executar_ffmpeg([
+            ffmpeg, "-y", "-i", str(bip), "-i", str(voz),
+            "-filter_complex", filtro_frente, "-map", "[out]",
+            "-c:a", "pcm_s16le", str(destino),
+        ])
+        return
+
     campainha = PASTA / "campainha.wav"
     fundo = localizar_fundo()
     if not campainha.is_file():
         raise FileNotFoundError("campainha.wav não encontrado; execute gerar_audios.py.")
-
     frente = temporario / "frente.wav"
     filtros_voz = "highpass=f=120"
     if config["echo"]:
@@ -161,19 +202,34 @@ def mixar_audio(voz: Path, destino: Path, config: dict[str, Any], temporario: Pa
     ])
 
 
-def executar_anuncio(origem: str, destino: str, hora: str, plataforma: str, voz: str | None = None) -> None:
+def executar_anuncio(
+    origem: str,
+    destino: str,
+    hora: str,
+    plataforma: str,
+    voz: str | None = None,
+    modo: str | None = None,
+    carga: str = "",
+) -> None:
     config = carregar_configuracao()
     voz_final = voz or config["voice"]
     if voz_final not in VOZES:
         raise ValueError(f"Voz não suportada: {voz_final!r}.")
-    frase = montar_anuncio(origem, destino, hora, plataforma)
-    LOGGER.info("Gerando anúncio com %s: %s", voz_final, frase)
+    perfil = modo or config["profile"]
+    modo_final = (
+        detectar_modo(carga) if perfil == "automatico" else perfil
+    )
+    if modo_final == "leiteiro":
+        frase = montar_anuncio_leiteiro(origem, destino, hora)
+    else:
+        frase = montar_anuncio_rodoviaria(origem, destino, hora, plataforma)
+    LOGGER.info("Gerando anúncio no modo %s com %s: %s", modo_final, voz_final, frase)
     with tempfile.TemporaryDirectory(prefix="rodoviaria_") as pasta:
         temporario = Path(pasta)
         arquivo_voz = temporario / "voz.mp3"
         arquivo_final = temporario / "anuncio.wav"
         asyncio.run(gerar_voz(frase, voz_final, arquivo_voz))
-        mixar_audio(arquivo_voz, arquivo_final, config, temporario)
+        mixar_audio(arquivo_voz, arquivo_final, config, temporario, modo_final)
         winsound.PlaySound(str(arquivo_final), winsound.SND_FILENAME)
     LOGGER.info("Anúncio reproduzido com sucesso.")
 
@@ -185,9 +241,14 @@ def main() -> int:
     parser.add_argument("--hora", default="agora")
     parser.add_argument("--plataforma", default="não informada")
     parser.add_argument("--voz", choices=VOZES)
+    parser.add_argument("--modo", choices=("rodoviaria", "leiteiro"))
+    parser.add_argument("--cargo", default="")
     args = parser.parse_args()
     try:
-        executar_anuncio(args.origem, args.destino, args.hora, args.plataforma, args.voz)
+        executar_anuncio(
+            args.origem, args.destino, args.hora, args.plataforma,
+            args.voz, args.modo, args.cargo,
+        )
     except Exception as erro:
         LOGGER.exception("Falha ao gerar ou reproduzir o anúncio.")
         print(f"Erro no anúncio: {erro}", file=sys.stderr)
