@@ -321,6 +321,7 @@ class Installer:
         hero = tk.Frame(outer, bg="#101318")
         hero.pack(fill="x", pady=(0, 20))
         self.brand_icon = tk.PhotoImage(file=str(resource_path("RodoviariaETS2.png")))
+        self.brand_icon = self.brand_icon.subsample(3, 3)
         tk.Label(hero, image=self.brand_icon, bg="#101318").pack(side="left", padx=(0, 14))
         brand_text = tk.Frame(hero, bg="#101318")
         brand_text.pack(side="left", fill="y", pady=6)

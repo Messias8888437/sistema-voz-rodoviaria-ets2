@@ -2,6 +2,26 @@
 
 Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62**, sem depender do SimHub em execução. A conexão direta lê a memória compartilhada `Local\SCSTelemetry`, publicada pelo plugin SCS `scs-telemetry.dll` (RenCloud) instalado no ETS2. A normalização de cidades foi preparada para nomes dos mapas brasileiros **Mapa Eldorado, Mapa EAA, Rotas Brasil e RBR**, além de outros mapas. O painel oferece os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, além de controles de voz e volume.
 
+## Conheça o aplicativo
+
+O painel reúne o estado da conexão com o jogo, os dados da viagem detectados pela telemetria e os controles para testar ou personalizar o anúncio. A imagem abaixo mostra o plugin encontrado e o ETS2 aguardando ser iniciado:
+
+![Painel RodoviariaETS2: conexão, teste manual, locutor e áudio](docs/images/painel-rodoviariaets2.png)
+
+No assistente de instalação, escolha a pasta principal do ETS2, confira o caminho completo de destino do plugin e marque as opções desejadas. É possível instalar o aplicativo, copiar `scs-telemetry.dll`, criar um atalho na Área de Trabalho e abrir o painel ao terminar:
+
+![Instalador RodoviariaETS2: destino do plugin e opções de instalação](docs/images/instalador-rodoviariaets2.png)
+
+### Fluxo de uso
+
+1. Execute o instalador e selecione a instalação correta do Euro Truck Simulator 2.
+2. Confirme a instalação do plugin no caminho `bin\win_x64\plugins\scs-telemetry.dll`. Se o Windows solicitar, autorize a cópia.
+3. Inicie o ETS2 e carregue um trabalho; depois abra o RodoviariaETS2.
+4. Confira no painel o estado da telemetria e os dados da viagem. Com o anúncio automático habilitado, o sistema identifica o tipo de carga e anuncia quando um novo trabalho começa.
+5. Se preferir, desative o anúncio automático, preencha os campos de teste manualmente e use **DISPARAR ANÚNCIO**.
+
+O status **PLUGIN INSTALADO** confirma que o arquivo foi encontrado; ele não significa que o jogo já está conectado. A conexão fica ativa quando o ETS2 está aberto e o plugin está publicando os dados. O painel também permite selecionar uma voz, habilitar o eco, trocar o áudio de fundo e ajustar separadamente os volumes da voz, do ambiente e da campainha.
+
 ## Requisitos
 
 - Windows e Python **3.15 ou superior**, com `tkinter`.
@@ -69,12 +89,20 @@ python falar_rodoviaria.py --origem "São Paulo" --destino "Campinas" --hora "19
 
 O painel oferece os perfis **Automático**, **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**. Os modos passageiros e leiteiro geram anúncios e mixagens de áudio diferentes; os modos também podem ser selecionados diretamente no motor:
 
+| Perfil | Como é selecionado | Uso |
+| --- | --- | --- |
+| Automático | Detecta o nome da carga informado pelo jogo | Cargas de leite e laticínios usam o modo Leiteiro; as demais usam Passageiros |
+| Passageiros (Rodoviária) | Seleção manual no painel ou `--modo rodoviaria` | Anúncio no estilo de embarque rodoviário |
+| Leiteiro (Coleta de Leite) | Seleção manual no painel ou `--modo leiteiro` | Anúncio no estilo de coleta e transporte de leite |
+
 ```powershell
 python falar_rodoviaria.py --origem "São Paulo" --destino "Campinas" --hora "19 horas" --modo rodoviaria
 python falar_rodoviaria.py --origem "Fazenda A" --destino "Laticínio B" --hora "19 horas" --modo leiteiro
 ```
 
 Com a conexão ativa ao plugin, o perfil automático classifica a carga lida do ETS2: termos como `leite`, `milk`, `laticin`, `queijo`, `iogurte` ou `tanque` selecionam o modo leiteiro; as demais cargas selecionam o modo rodoviária. Na chamada direta do motor, informe `--cargo` para usar essa mesma detecção. O painel também permite forçar qualquer modo.
+
+Nos mapas brasileiros, origem e destino são lidos dos dados do trabalho e normalizados antes de serem falados. O horário vem do relógio do jogo. O sistema usa os dados de telemetria disponíveis, sem depender de um mapa específico ou de um serviço externo como o SimHub.
 
 ## Compilar o painel
 
