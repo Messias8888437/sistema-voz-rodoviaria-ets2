@@ -12,6 +12,8 @@ No assistente de instalação, escolha a pasta principal do ETS2, confira o cami
 
 ![Instalador RodoviariaETS2: destino do plugin e opções de instalação](docs/images/instalador-rodoviariaets2.png)
 
+**Próximo:** clique em **Instalar** para concluir. Se a opção de execução estiver marcada, o RodoviariaETS2 abrirá em seguida; caso contrário, abra o aplicativo pelo atalho criado na Área de Trabalho.
+
 ### Fluxo de uso
 
 1. Execute o instalador e selecione a instalação correta do Euro Truck Simulator 2.
