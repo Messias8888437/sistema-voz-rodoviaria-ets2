@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -33,6 +34,62 @@ PANEL = "#18181b"
 FG = "#f4f4f5"
 MUTED = "#a1a1aa"
 ACCENT = "#38bdf8"
+PLUGIN_NAME = "scs-telemetry.dll"
+DEFAULT_GAME_DIRECTORY = Path(
+    r"C:\Program Files (x86)\Steam\steamapps\common\Euro Truck Simulator 2"
+)
+
+
+def find_telemetry_plugin() -> Path | None:
+    game_directories = [
+        DEFAULT_GAME_DIRECTORY,
+        Path(r"C:\Program Files\Steam\steamapps\common\Euro Truck Simulator 2"),
+    ]
+    try:
+        import winreg
+
+        steam_roots: set[Path] = set()
+        registry_paths = (
+            (winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Valve\Steam"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Valve\Steam"),
+        )
+        for hive, key_name in registry_paths:
+            try:
+                with winreg.OpenKey(hive, key_name) as key:
+                    for value_name in ("SteamPath", "InstallPath"):
+                        try:
+                            value, _ = winreg.QueryValueEx(key, value_name)
+                        except OSError:
+                            continue
+                        steam_roots.add(Path(value))
+            except OSError:
+                continue
+        for steam_root in steam_roots:
+            game_directories.append(
+                steam_root / "steamapps" / "common" / "Euro Truck Simulator 2"
+            )
+            libraries_file = steam_root / "steamapps" / "libraryfolders.vdf"
+            if libraries_file.is_file():
+                contents = libraries_file.read_text(encoding="utf-8", errors="replace")
+                for library in re.findall(r'"path"\s+"([^"]+)"', contents):
+                    game_directories.append(
+                        Path(library.replace("\\\\", "\\"))
+                        / "steamapps"
+                        / "common"
+                        / "Euro Truck Simulator 2"
+                    )
+    except ImportError:
+        pass
+
+    seen: set[str] = set()
+    for game_directory in game_directories:
+        plugin_path = game_directory / "bin" / "win_x64" / "plugins" / PLUGIN_NAME
+        key = os.path.normcase(str(plugin_path))
+        if key not in seen and plugin_path.is_file():
+            return plugin_path
+        seen.add(key)
+    return None
 
 
 def load_config() -> dict[str, Any]:
@@ -120,6 +177,7 @@ class AppRodoviaria:
         self.telemetry_details = tk.StringVar(
             value="Abra o ETS2 com o plugin SCS scs-telemetry.dll (RenCloud) ativo."
         )
+        self.plugin_path = find_telemetry_plugin()
         self.telemetry_reader = TelemetryReader()
         self._telemetry_snapshot: TelemetrySnapshot | None = None
         self._last_job_active = False
@@ -187,14 +245,26 @@ class AppRodoviaria:
             telemetry, "Conexão direta com o ETS2",
             "Lê a memória compartilhada pelo plugin SCS, sem usar o SimHub.",
         )
-        tk.Label(
-            telemetry, textvariable=self.telemetry_status, bg=PANEL, fg=ACCENT,
-            font=("Consolas", 10, "bold"),
-        ).pack(anchor="w")
-        tk.Label(
-            telemetry, textvariable=self.telemetry_details, bg=PANEL, fg=MUTED,
-            font=("Segoe UI", 9), wraplength=660, justify="left",
-        ).pack(anchor="w", pady=(4, 5))
+        self.telemetry_card = tk.Frame(telemetry, bg="#20252b", padx=13, pady=10)
+        self.telemetry_card.pack(fill="x", pady=(0, 8))
+        status_row = tk.Frame(self.telemetry_card, bg="#20252b")
+        status_row.pack(fill="x")
+        self.telemetry_dot = tk.Label(
+            status_row, text="●", bg="#20252b", fg=ACCENT,
+            font=("Segoe UI", 12),
+        )
+        self.telemetry_dot.pack(side="left", padx=(0, 8))
+        self.telemetry_status_label = tk.Label(
+            status_row, textvariable=self.telemetry_status, bg="#20252b", fg=ACCENT,
+            font=("Segoe UI", 10, "bold"),
+        )
+        self.telemetry_status_label.pack(side="left")
+        self.telemetry_details_label = tk.Label(
+            self.telemetry_card, textvariable=self.telemetry_details,
+            bg="#20252b", fg=MUTED, font=("Segoe UI", 9),
+            wraplength=630, justify="left",
+        )
+        self.telemetry_details_label.pack(anchor="w", pady=(5, 0))
         ttk.Checkbutton(
             telemetry, text="Anunciar automaticamente ao iniciar um trabalho",
             variable=self.auto_announce, command=self.change_auto_announce,
@@ -309,8 +379,18 @@ class AppRodoviaria:
             self._last_job_signature = None
             self._last_job_start_time = None
             self._auto_announcement_pending = False
-            self.telemetry_status.set("ERRO NA CONEXÃO COM O PLUGIN")
-            self.telemetry_details.set(str(error))
+            if self.plugin_path:
+                self.set_telemetry_state(
+                    "installed",
+                    "PLUGIN INSTALADO • ETS2 SEM CONEXÃO",
+                    f"DLL encontrada em {self.plugin_path}. Abra ou reinicie o ETS2.\n{error}",
+                )
+            else:
+                self.set_telemetry_state(
+                    "error",
+                    "PLUGIN NÃO ENCONTRADO",
+                    f"Não encontrei {PLUGIN_NAME} na pasta de plugins do ETS2.\n{error}",
+                )
         else:
             if snapshot is None:
                 self._telemetry_snapshot = None
@@ -318,15 +398,47 @@ class AppRodoviaria:
                 self._last_job_signature = None
                 self._last_job_start_time = None
                 self._auto_announcement_pending = False
-                self.telemetry_status.set("AGUARDANDO ETS2 E PLUGIN SCS")
-                self.telemetry_details.set(
-                    "Instale scs-telemetry.dll (RenCloud) em "
-                    "Euro Truck Simulator 2\\bin\\win_x64\\plugins e abra o jogo."
-                )
+                self.plugin_path = find_telemetry_plugin()
+                if self.plugin_path:
+                    self.set_telemetry_state(
+                        "installed",
+                        "PLUGIN INSTALADO • AGUARDANDO ETS2",
+                        f"scs-telemetry.dll encontrada em:\n{self.plugin_path}\n"
+                        "Inicie o ETS2 para conectar a telemetria.",
+                    )
+                else:
+                    expected_path = (
+                        DEFAULT_GAME_DIRECTORY
+                        / "bin"
+                        / "win_x64"
+                        / "plugins"
+                        / PLUGIN_NAME
+                    )
+                    self.set_telemetry_state(
+                        "missing",
+                        "PLUGIN NÃO INSTALADO",
+                        f"Não encontrei {PLUGIN_NAME}. Instale o plugin em:\n"
+                        f"{expected_path}",
+                    )
             else:
                 self.update_telemetry(snapshot)
         if self.root.winfo_exists():
             self._telemetry_after = self.root.after(1000, self.poll_telemetry)
+
+    def set_telemetry_state(self, state: str, title: str, details: str) -> None:
+        palettes = {
+            "connected": ("#13271e", "#4ade80", "#86efac"),
+            "installed": ("#292315", "#fbbf24", "#fde68a"),
+            "missing": ("#2a1717", "#fb7185", "#fda4af"),
+            "error": ("#2b2116", "#fb923c", "#fdba74"),
+        }
+        background, indicator, foreground = palettes[state]
+        self.telemetry_status.set(title)
+        self.telemetry_details.set(details)
+        self.telemetry_card.configure(bg=background)
+        self.telemetry_dot.configure(bg=background, fg=indicator)
+        self.telemetry_status_label.configure(bg=background, fg=foreground)
+        self.telemetry_details_label.configure(bg=background)
 
     def update_telemetry(self, snapshot: TelemetrySnapshot) -> None:
         self._telemetry_snapshot = snapshot
@@ -335,11 +447,12 @@ class AppRodoviaria:
         modo = detectar_modo(snapshot.cargo)
         nome_modo = "Leiteiro (Coleta de Leite)" if modo == "leiteiro" else "Passageiros (Rodoviária)"
         situacao = "TRABALHO ATIVO" if snapshot.on_job else "CONECTADO, SEM TRABALHO ATIVO"
-        self.telemetry_status.set(f"ETS2 CONECTADO • {situacao}")
-        self.telemetry_details.set(
+        self.set_telemetry_state(
+            "connected",
+            f"ETS2 CONECTADO • {situacao}",
             f"{origem or 'Origem indisponível'} → {destino or 'Destino indisponível'}"
             f" • {snapshot.game_time} • {nome_modo}"
-            f" • Carga: {snapshot.cargo or 'não informada'}"
+            f" • Carga: {snapshot.cargo or 'não informada'}",
         )
 
         assinatura = (
