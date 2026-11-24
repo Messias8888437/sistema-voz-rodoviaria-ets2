@@ -17,11 +17,15 @@ py -3.15 -m pip install edge-tts static-ffmpeg pyinstaller
 
 ## Instalar e conectar o plugin de telemetria
 
-1. Feche o ETS2.
-2. Na pasta de instalação do jogo, confirme que existe `bin\win_x64\plugins`. Por exemplo, em uma instalação Steam padrão:
-   `C:\Program Files (x86)\Steam\steamapps\common\Euro Truck Simulator 2\bin\win_x64\plugins`
-3. Instale o `scs-telemetry.dll` do plugin RenCloud nessa pasta. O plugin não é distribuído junto com este projeto.
-4. Inicie o ETS2 e depois abra `RodoviariaETS2.exe`. O painel lê diretamente a memória compartilhada `Local\SCSTelemetry`, criada pelo plugin quando o jogo carrega. Não é necessário instalar `ETS2Telemetry_x64.dll` ou `SHEETS2Telemetry_x64.dll`, nem abrir o SimHub.
+O instalador do Windows inclui o plugin oficial RenCloud e o coloca exatamente em `bin\win_x64\plugins` dentro da instalação do jogo. O caminho padrão Steam é:
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\Euro Truck Simulator 2\bin\win_x64\plugins\scs-telemetry.dll
+```
+
+Baixe e execute o [instalador RodoviariaETS2 para Windows](https://github.com/Messias8888437/sistema-voz-rodoviaria-ets2/releases/download/v1.1.0/RodoviariaETS2-Setup.exe). Selecione a pasta principal do ETS2, confirme o destino exibido na tela e aceite a solicitação do Windows para copiar a DLL para a pasta protegida do jogo. O instalador preserva uma DLL anterior de mesmo nome como backup, oferece a criação de atalho na Área de Trabalho e pode abrir o aplicativo ao concluir.
+
+Também é possível instalar manualmente: feche o ETS2 e copie `scs-telemetry.dll` para a pasta acima. Inicie o ETS2 e depois abra o aplicativo. O painel lê diretamente a memória compartilhada `Local\SCSTelemetry`, criada pelo plugin quando o jogo carrega. Não é necessário instalar `ETS2Telemetry_x64.dll` ou `SHEETS2Telemetry_x64.dll`, nem abrir o SimHub.
 
 O status **Conexão direta com o ETS2** no painel mostra quando o plugin está publicando telemetria, se há um trabalho ativo, origem, destino, horário do jogo e carga. Enquanto estiver conectado, os campos do painel são atualizados com os dados do jogo. A opção **Anunciar automaticamente ao iniciar um trabalho** dispara um anúncio quando a telemetria sinaliza um novo trabalho; desmarque-a para apenas acompanhar os dados e fazer anúncios manuais.
 
@@ -45,7 +49,9 @@ O painel salva preferências em `config_rodoviaria.json`. O anúncio usa `falar_
 
 ### Executar `RodoviariaETS2.exe`
 
-Baixe o [RodoviariaETS2.exe para Windows](https://github.com/Messias8888437/sistema-voz-rodoviaria-ets2/releases/download/v1.0.0/RodoviariaETS2.exe) ou acesse a página da [release v1.0.0](https://github.com/Messias8888437/sistema-voz-rodoviaria-ets2/releases/tag/v1.0.0). Coloque o executável na mesma pasta que `falar_rodoviaria.py`, `telemetria_ets2.py`, `config_rodoviaria.json`, `campainha.wav` e `fundo_rodoviaria.wav` (ou `fundo_rodoviaria.mp3`). Abra o executável para iniciar o painel. Como o programa chama o motor Python como processo separado, Python 3.15+, `edge-tts` e `static-ffmpeg` precisam estar instalados e disponíveis no PATH. É necessária conexão com a internet para gerar a voz.
+Recomenda-se usar o [instalador para Windows](https://github.com/Messias8888437/sistema-voz-rodoviaria-ets2/releases/download/v1.1.0/RodoviariaETS2-Setup.exe), que instala o painel e o motor independente, configura o plugin no ETS2 e permite criar um atalho. Essa instalação não exige Python no computador de destino. É necessária conexão com a internet para gerar a voz com edge-tts; o FFmpeg/FFprobe é baixado na primeira locução e armazenado em `%LOCALAPPDATA%\RodoviariaETS2\ffmpeg` para reutilização.
+
+O executável avulso [RodoviariaETS2.exe da release v1.0.0](https://github.com/Messias8888437/sistema-voz-rodoviaria-ets2/releases/download/v1.0.0/RodoviariaETS2.exe) é uma versão anterior do painel: para usá-lo, mantenha `falar_rodoviaria.py`, `telemetria_ets2.py`, `config_rodoviaria.json`, `campainha.wav` e um áudio de fundo (`fundo_rodoviaria.wav` ou `fundo_rodoviaria.mp3`) ao lado do executável e tenha Python 3.15+, `edge-tts` e `static-ffmpeg` instalados e disponíveis no PATH.
 
 O suporte aos mapas é independente do SimHub e do mapa carregado: o motor normaliza os nomes de origem e destino recebidos do plugin, incluindo separadores, siglas de estados e acentos conhecidos. Também é possível informar a viagem manualmente. O perfil automático usa o nome da carga lido da telemetria (ou fornecido por `--cargo`): cargas de leite e laticínios selecionam **Leiteiro (Coleta de Leite)**; as demais selecionam **Passageiros (Rodoviária)**. Os modos também podem ser escolhidos manualmente no painel.
 
@@ -69,11 +75,11 @@ Com a conexão ativa ao plugin, o perfil automático classifica a carga lida do 
 ## Compilar o painel
 
 ```powershell
-python -m PyInstaller --clean --noconfirm --noconsole --onefile --distpath "$env:TEMP\py_dist" --workpath "$env:TEMP\py_build" --specpath "$env:TEMP" --name "RodoviariaETS2" app_rodoviaria.py
-Copy-Item "$env:TEMP\py_dist\RodoviariaETS2.exe" ".\RodoviariaETS2.exe" -Force
+py -3.15 -m pip install edge-tts static-ffmpeg pyinstaller
+powershell -ExecutionPolicy Bypass -File .\installer\build_installer.ps1
 ```
 
-O executável é copiado para a raiz como `RodoviariaETS2.exe`. Feche instâncias abertas antes de substituí-lo. Para usar o painel compilado, mantenha `falar_rodoviaria.py`, `telemetria_ets2.py`, `config_rodoviaria.json`, `campainha.wav` e um áudio de fundo junto ao executável. Python e as dependências `edge-tts` e `static-ffmpeg` também precisam estar instalados e disponíveis no PATH, pois o painel inicia o motor como um script separado.
+O script compila o painel, o motor independente e o instalador `dist\RodoviariaETS2-Setup.exe`. Ele baixa a release RenCloud V.1.12.1, verifica o SHA-256 esperado do plugin antes de empacotá-lo e copia o instalador para a Área de Trabalho. O instalador inclui `THIRD-PARTY-NOTICES.txt` com a licença MIT do plugin.
 
 ## Arquivos principais
 

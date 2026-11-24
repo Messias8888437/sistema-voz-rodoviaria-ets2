@@ -13,7 +13,8 @@ from telemetria_ets2 import TelemetryReader, TelemetrySnapshot, detectar_modo, l
 
 PASTA = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 CONFIG_PATH = PASTA / "config_rodoviaria.json"
-ENGINE_PATH = PASTA / "falar_rodoviaria.py"
+ENGINE_PATH = PASTA / "RodoviariaEngine.exe"
+ENGINE_SCRIPT_PATH = PASTA / "falar_rodoviaria.py"
 VOZES = {"Francisca (Feminina)": "pt-BR-FranciscaNeural", "Antonio (Masculino)": "pt-BR-AntonioNeural"}
 VOZES_REVERSO = {valor: nome for nome, valor in VOZES.items()}
 PERFIS = {
@@ -410,8 +411,12 @@ class AppRodoviaria:
         self.status.set("ÁUDIO DE FUNDO ATUALIZADO")
 
     def start_announcement(self, telemetry: TelemetrySnapshot | None = None) -> None:
-        if not ENGINE_PATH.is_file():
-            messagebox.showerror("Motor não encontrado", f"Arquivo ausente: {ENGINE_PATH}", parent=self.root)
+        if not ENGINE_PATH.is_file() and not ENGINE_SCRIPT_PATH.is_file():
+            messagebox.showerror(
+                "Motor não encontrado",
+                f"Não encontrei {ENGINE_PATH.name} nem {ENGINE_SCRIPT_PATH.name}.",
+                parent=self.root,
+            )
             return
         if self.announce_button["state"] == tk.DISABLED:
             return
@@ -433,8 +438,11 @@ class AppRodoviaria:
 
     def run_announcement(self, data: dict[str, str], call: str) -> None:
         try:
-            command = python_command() + [
-                str(ENGINE_PATH), "--origem", data["origem"], "--destino", data["destino"],
+            command = (
+                [str(ENGINE_PATH)] if ENGINE_PATH.is_file()
+                else python_command() + [str(ENGINE_SCRIPT_PATH)]
+            ) + [
+                "--origem", data["origem"], "--destino", data["destino"],
                 "--hora", data["hora"], "--plataforma", data["plataforma"],
                 "--voz", data["voz"], "--cargo", data["cargo"],
             ]

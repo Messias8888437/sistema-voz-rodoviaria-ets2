@@ -17,7 +17,11 @@ import winsound
 
 from telemetria_ets2 import detectar_modo, limpar_cidade
 
-PASTA = Path(__file__).resolve().parent
+PASTA = (
+    Path(sys.executable).resolve().parent
+    if getattr(sys, "frozen", False)
+    else Path(__file__).resolve().parent
+)
 ARQUIVO_CONFIG = PASTA / "config_rodoviaria.json"
 VOZES = ("pt-BR-FranciscaNeural", "pt-BR-AntonioNeural")
 PERFIS = ("automatico", "rodoviaria", "leiteiro")
@@ -37,6 +41,12 @@ logging.basicConfig(
     encoding="utf-8",
 )
 LOGGER = logging.getLogger("rodoviaria")
+FFMPEG_CACHE = (
+    Path(os.environ.get("LOCALAPPDATA", str(PASTA)))
+    / "RodoviariaETS2"
+    / "ffmpeg"
+    / "win32"
+)
 
 
 def carregar_configuracao() -> dict[str, Any]:
@@ -133,7 +143,7 @@ async def gerar_voz(texto: str, voz: str, arquivo: Path) -> None:
 def mixar_audio(
     voz: Path, destino: Path, config: dict[str, Any], temporario: Path, modo: str
 ) -> None:
-    static_ffmpeg.add_paths()
+    static_ffmpeg.add_paths(download_dir=str(FFMPEG_CACHE))
     ffmpeg = shutil.which("ffmpeg")
     ffprobe = shutil.which("ffprobe")
     if not ffmpeg or not ffprobe:
