@@ -114,7 +114,7 @@ class AppRodoviaria:
         self.audio_status = tk.StringVar()
         self.telemetry_status = tk.StringVar(value="PROCURANDO PLUGIN SCS...")
         self.telemetry_details = tk.StringVar(
-            value="Abra o ETS2 com SHETS2Telemetry_x64.dll instalado."
+            value="Abra o ETS2 com o plugin SCS scs-telemetry.dll (RenCloud) ativo."
         )
         self.telemetry_reader = TelemetryReader()
         self._telemetry_snapshot: TelemetrySnapshot | None = None
@@ -316,7 +316,7 @@ class AppRodoviaria:
                 self._auto_announcement_pending = False
                 self.telemetry_status.set("AGUARDANDO ETS2 E PLUGIN SCS")
                 self.telemetry_details.set(
-                    "Instale SHETS2Telemetry_x64.dll em "
+                    "Instale scs-telemetry.dll (RenCloud) em "
                     "Euro Truck Simulator 2\\bin\\win_x64\\plugins e abra o jogo."
                 )
             else:

@@ -8,8 +8,10 @@ from dataclasses import dataclass
 from ctypes import wintypes
 from typing import Any
 
-SCS_SHARED_MEMORY_NAME = "Local\\SHSCSTelemetry"
+SCS_SHARED_MEMORY_NAME = "Local\\SCSTelemetry"
 SCS_SHARED_MEMORY_SIZE = 32 * 1024
+PLUGIN_REVISION_OFFSET = 40
+PLUGIN_REVISION = 12
 GAME_TIME_OFFSET = 64
 UPDATE_TIMESTAMP_OFFSET = 8
 JOB_START_TIME_OFFSET = 444
@@ -56,6 +58,12 @@ def parse_shared_memory(data: bytes) -> TelemetrySnapshot:
         )
     if not data[0]:
         raise ValueError("O plugin SCS ainda não ativou a telemetria do ETS2.")
+    plugin_revision = struct.unpack_from("<I", data, PLUGIN_REVISION_OFFSET)[0]
+    if plugin_revision != PLUGIN_REVISION:
+        raise ValueError(
+            f"Revisão de telemetria incompatível: {plugin_revision}; "
+            f"esperada {PLUGIN_REVISION}."
+        )
     update_timestamp = struct.unpack_from("<Q", data, UPDATE_TIMESTAMP_OFFSET)[0]
     game_minutes = struct.unpack_from("<I", data, GAME_TIME_OFFSET)[0]
     job_start_time = struct.unpack_from("<I", data, JOB_START_TIME_OFFSET)[0]

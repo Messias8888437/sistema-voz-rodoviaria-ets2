@@ -1,13 +1,13 @@
 # Sistema de Voz Rodoviária para ETS2
 
-Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62**, sem depender do SimHub em execução. A conexão direta usa o plugin SCS `SHETS2Telemetry_x64.dll` instalado no ETS2; o aplicativo lê os dados publicados pelo plugin na memória compartilhada do Windows. A normalização de cidades foi preparada para nomes dos mapas brasileiros **Mapa Eldorado, Mapa EAA, Rotas Brasil e RBR**, além de outros mapas. O painel oferece os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, além de controles de voz e volume.
+Aplicativo em português para anúncios no **Euro Truck Simulator 2 1.62**, sem depender do SimHub em execução. A conexão direta lê a memória compartilhada `Local\SCSTelemetry`, publicada pelo plugin SCS `scs-telemetry.dll` (RenCloud) instalado no ETS2. A normalização de cidades foi preparada para nomes dos mapas brasileiros **Mapa Eldorado, Mapa EAA, Rotas Brasil e RBR**, além de outros mapas. O painel oferece os modos **Passageiros (Rodoviária)** e **Leiteiro (Coleta de Leite)**, além de controles de voz e volume.
 
 ## Requisitos
 
 - Windows e Python **3.15 ou superior**, com `tkinter`.
 - Pacotes Python `edge-tts` e `static-ffmpeg`.
 - PyInstaller para compilar o executável.
-- O plugin de telemetria `SHETS2Telemetry_x64.dll`, distribuído separadamente.
+- O plugin de telemetria `scs-telemetry.dll` (RenCloud), distribuído separadamente.
 
 Instale as dependências:
 
@@ -20,12 +20,12 @@ py -3.15 -m pip install edge-tts static-ffmpeg pyinstaller
 1. Feche o ETS2.
 2. Na pasta de instalação do jogo, confirme que existe `bin\win_x64\plugins`. Por exemplo, em uma instalação Steam padrão:
    `C:\Program Files (x86)\Steam\steamapps\common\Euro Truck Simulator 2\bin\win_x64\plugins`
-3. Copie `SHETS2Telemetry_x64.dll` de uma instalação confiável do plugin para essa pasta. O arquivo não é distribuído junto com este projeto; mantenha o nome exatamente `SHETS2Telemetry_x64.dll` e não instale cópias duplicadas.
-4. Inicie o ETS2 e depois abra `RodoviariaETS2.exe`. O painel conecta diretamente à memória compartilhada `Local\SHSCSTelemetry`, criada pelo plugin quando o jogo carrega a DLL. Não é necessário abrir o SimHub.
+3. Instale o `scs-telemetry.dll` do plugin RenCloud nessa pasta. O plugin não é distribuído junto com este projeto.
+4. Inicie o ETS2 e depois abra `RodoviariaETS2.exe`. O painel lê diretamente a memória compartilhada `Local\SCSTelemetry`, criada pelo plugin quando o jogo carrega. Não é necessário instalar `ETS2Telemetry_x64.dll` ou `SHEETS2Telemetry_x64.dll`, nem abrir o SimHub.
 
 O status **Conexão direta com o ETS2** no painel mostra quando o plugin está publicando telemetria, se há um trabalho ativo, origem, destino, horário do jogo e carga. Enquanto estiver conectado, os campos do painel são atualizados com os dados do jogo. A opção **Anunciar automaticamente ao iniciar um trabalho** dispara um anúncio quando a telemetria sinaliza um novo trabalho; desmarque-a para apenas acompanhar os dados e fazer anúncios manuais.
 
-Se o painel ficar em **AGUARDANDO ETS2 E PLUGIN SCS**, verifique se o jogo está aberto, se a DLL está na pasta correta e se o plugin foi carregado. A DLL é um componente separado instalado na pasta de plugins do jogo e não está embutida no executável do painel. O aplicativo só lê o bloco de memória do plugin; ele não injeta código no jogo nem altera seus arquivos.
+Se o painel ficar em **AGUARDANDO ETS2 E PLUGIN SCS**, verifique se o jogo está aberto, se `scs-telemetry.dll` está na pasta correta e se o plugin foi carregado. A DLL é um componente separado instalado na pasta de plugins do jogo e não está embutida no executável do painel. O aplicativo só lê o bloco de memória do plugin; ele não injeta código no jogo nem altera seus arquivos.
 
 ## Formatação de cidades
 
