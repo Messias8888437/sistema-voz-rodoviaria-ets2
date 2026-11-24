@@ -25,6 +25,8 @@ C:\Program Files (x86)\Steam\steamapps\common\Euro Truck Simulator 2\bin\win_x64
 
 Baixe e execute o [instalador RodoviariaETS2 para Windows](https://github.com/Messias8888437/sistema-voz-rodoviaria-ets2/releases/download/v1.1.0/RodoviariaETS2-Setup.exe). Selecione a pasta principal do ETS2, confirme o destino exibido na tela e aceite a solicitação do Windows para copiar a DLL para a pasta protegida do jogo. O instalador preserva uma DLL anterior de mesmo nome como backup, oferece a criação de atalho na Área de Trabalho e pode abrir o aplicativo ao concluir.
 
+O instalador e o aplicativo têm ícone próprio do RodoviariaETS2; o mesmo visual aparece na janela e no atalho da Área de Trabalho.
+
 Também é possível instalar manualmente: feche o ETS2 e copie `scs-telemetry.dll` para a pasta acima. Inicie o ETS2 e depois abra o aplicativo. O painel lê diretamente a memória compartilhada `Local\SCSTelemetry`, criada pelo plugin quando o jogo carrega. Não é necessário instalar `ETS2Telemetry_x64.dll` ou `SHEETS2Telemetry_x64.dll`, nem abrir o SimHub.
 
 O status **Conexão direta com o ETS2** no painel mostra quando o plugin está publicando telemetria, se há um trabalho ativo, origem, destino, horário do jogo e carga. Enquanto estiver conectado, os campos do painel são atualizados com os dados do jogo. A opção **Anunciar automaticamente ao iniciar um trabalho** dispara um anúncio quando a telemetria sinaliza um novo trabalho; desmarque-a para apenas acompanhar os dados e fazer anúncios manuais.

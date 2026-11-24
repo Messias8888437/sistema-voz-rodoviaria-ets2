@@ -92,6 +92,9 @@ class AppRodoviaria:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Central Rodoviária • ETS2 / Mapas Brasileiros")
+        icon_path = PASTA / "RodoviariaETS2.ico"
+        if icon_path.is_file():
+            self.root.iconbitmap(default=str(icon_path))
         self.root.geometry("760x940")
         self.root.minsize(700, 860)
         self.root.configure(bg=BG)

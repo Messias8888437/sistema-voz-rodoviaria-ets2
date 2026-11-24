@@ -19,6 +19,7 @@ try {
         "campainha.wav",
         "fundo_rodoviaria.wav",
         "installer\setup_rodoviaria.py",
+        "installer\create_icon.py",
         "installer\THIRD-PARTY-NOTICES.txt"
     )
     foreach ($relativePath in $requiredFiles) {
@@ -46,15 +47,24 @@ try {
         "--clean", "--noconfirm", "--onefile", "--noconsole",
         "--workpath", $work, "--specpath", $work
     )
+    $iconScript = Join-Path $projectRoot "installer\create_icon.py"
+    & py -3.15 $iconScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha ao gerar o ícone do aplicativo."
+    }
+    $iconPath = Join-Path $projectRoot "installer\RodoviariaETS2.ico"
+    $imagePath = Join-Path $projectRoot "installer\RodoviariaETS2.png"
+
     & py -3.15 -m PyInstaller @commonArguments `
-        "--distpath" $payload "--name" "RodoviariaETS2" `
+        "--distpath" $payload "--name" "RodoviariaETS2" "--icon" $iconPath `
+        "--add-data" "$iconPath;." `
         (Join-Path $projectRoot "app_rodoviaria.py")
     if ($LASTEXITCODE -ne 0) {
         throw "Falha ao compilar o aplicativo principal."
     }
 
     & py -3.15 -m PyInstaller @commonArguments `
-        "--distpath" $payload "--name" "RodoviariaEngine" `
+        "--distpath" $payload "--name" "RodoviariaEngine" "--icon" $iconPath `
         (Join-Path $projectRoot "falar_rodoviaria.py")
     if ($LASTEXITCODE -ne 0) {
         throw "Falha ao compilar o motor de anúncios."
@@ -66,13 +76,16 @@ try {
     Copy-Item -LiteralPath (Join-Path $projectRoot "fundo_rodoviaria.wav") -Destination $payload
     Copy-Item -LiteralPath (Join-Path $projectRoot "installer\THIRD-PARTY-NOTICES.txt") `
         -Destination $payload
+    Copy-Item -LiteralPath $iconPath -Destination $payload
+    Copy-Item -LiteralPath $imagePath -Destination $payload
 
     $installerArguments = @(
         "--clean", "--noconfirm", "--onefile", "--noconsole",
         "--workpath", (Join-Path $work "setup"),
         "--specpath", $work,
         "--distpath", $outputDirectory,
-        "--name", "RodoviariaETS2-Setup"
+        "--name", "RodoviariaETS2-Setup",
+        "--icon", $iconPath
     )
     foreach ($fileName in @(
         "RodoviariaETS2.exe",
@@ -80,7 +93,9 @@ try {
         "scs-telemetry.dll",
         "campainha.wav",
         "fundo_rodoviaria.wav",
-        "THIRD-PARTY-NOTICES.txt"
+        "THIRD-PARTY-NOTICES.txt",
+        "RodoviariaETS2.ico",
+        "RodoviariaETS2.png"
     )) {
         $installerArguments += @("--add-data", "$(Join-Path $payload $fileName);payload")
     }
@@ -93,12 +108,6 @@ try {
     $installerPath = Join-Path $outputDirectory "RodoviariaETS2-Setup.exe"
     $desktop = [Environment]::GetFolderPath("Desktop")
     $desktopPath = Join-Path $desktop "RodoviariaETS2-Setup.exe"
-    if ((Test-Path -LiteralPath $desktopPath) -and
-        (Get-FileHash -LiteralPath $desktopPath -Algorithm SHA256).Hash -ne
-        (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash) {
-        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $desktopPath = Join-Path $desktop "RodoviariaETS2-Setup-$stamp.exe"
-    }
     Copy-Item -LiteralPath $installerPath -Destination $desktopPath -Force
     Write-Output "Instalador: $installerPath"
     Write-Output "Cópia na Área de Trabalho: $desktopPath"

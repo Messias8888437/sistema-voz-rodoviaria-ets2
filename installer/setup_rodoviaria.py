@@ -20,6 +20,7 @@ APP_FILES = (
     "campainha.wav",
     "fundo_rodoviaria.wav",
     "THIRD-PARTY-NOTICES.txt",
+    "RodoviariaETS2.ico",
 )
 PLUGIN_NAME = "scs-telemetry.dll"
 PLUGIN_SHA256 = "1d03dbc7a975e72203c60a7b9998021ceb8800b836bf28a131279979ad386cd4"
@@ -290,6 +291,7 @@ class Installer:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Instalação do RodoviariaETS2")
+        self.root.iconbitmap(str(resource_path("RodoviariaETS2.ico")))
         self.root.geometry("650x650")
         self.root.minsize(620, 620)
         self.root.configure(bg="#101318")
@@ -315,19 +317,26 @@ class Installer:
     def build_ui(self) -> None:
         outer = tk.Frame(self.root, bg="#101318", padx=28, pady=24)
         outer.pack(fill="both", expand=True)
+        hero = tk.Frame(outer, bg="#101318")
+        hero.pack(fill="x", pady=(0, 20))
+        self.brand_icon = tk.PhotoImage(file=str(resource_path("RodoviariaETS2.png")))
+        tk.Label(hero, image=self.brand_icon, bg="#101318").pack(side="left", padx=(0, 14))
+        brand_text = tk.Frame(hero, bg="#101318")
+        brand_text.pack(side="left", fill="y", pady=6)
         tk.Label(
-            outer,
-            text="RodoviariaETS2",
+            brand_text,
+            text="RODOVIARIA ETS2",
             bg="#101318",
             fg="#f4f4f5",
-            font=("Segoe UI", 22, "bold"),
+            font=("Segoe UI", 21, "bold"),
         ).pack(anchor="w")
         tk.Label(
-            outer,
-            text="Assistente de instalação para Windows • ETS2 1.62",
+            brand_text,
+            text="SUA CENTRAL DE EMBARQUE • ETS2 1.62",
             bg="#101318",
-            fg="#a1a1aa",
-        ).pack(anchor="w", pady=(2, 20))
+            fg="#38bdf8",
+            font=("Segoe UI", 9, "bold"),
+        ).pack(anchor="w", pady=(3, 0))
 
         self.section(outer, "1. Pasta do aplicativo")
         install_row = tk.Frame(outer, bg="#101318")
