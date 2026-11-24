@@ -261,13 +261,14 @@ def create_desktop_shortcut(install_directory: Path) -> Path:
     desktop.mkdir(parents=True, exist_ok=True)
     shortcut_path = desktop / "RodoviariaETS2.lnk"
     quote = lambda value: "'" + str(value).replace("'", "''") + "'"
+    icon_path = install_directory / "RodoviariaETS2.ico"
     command = (
         "$shell = New-Object -ComObject WScript.Shell; "
         f"$link = $shell.CreateShortcut({quote(shortcut_path)}); "
         f"$link.TargetPath = {quote(install_directory / 'RodoviariaETS2.exe')}; "
         f"$link.WorkingDirectory = {quote(install_directory)}; "
         "$link.Description = 'Sistema de Voz Rodoviária para ETS2'; "
-        f"$link.IconLocation = {quote(install_directory / 'RodoviariaETS2.exe')}; "
+        f"$link.IconLocation = {quote(str(icon_path) + ',0')}; "
         "$link.Save()"
     )
     result = subprocess.run(

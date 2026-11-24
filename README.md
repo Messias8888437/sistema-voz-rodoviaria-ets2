@@ -31,9 +31,9 @@ Também é possível instalar manualmente: feche o ETS2 e copie `scs-telemetry.d
 
 O status **Conexão direta com o ETS2** no painel mostra quando o plugin está publicando telemetria, se há um trabalho ativo, origem, destino, horário do jogo e carga. Enquanto estiver conectado, os campos do painel são atualizados com os dados do jogo. A opção **Anunciar automaticamente ao iniciar um trabalho** dispara um anúncio quando a telemetria sinaliza um novo trabalho; desmarque-a para apenas acompanhar os dados e fazer anúncios manuais.
 
-Quando o ETS2 está fechado, o painel verifica a pasta do jogo e mostra **PLUGIN INSTALADO • AGUARDANDO ETS2** se encontrar `scs-telemetry.dll`; quando o jogo e o plugin conectam, o indicador fica verde. Se a DLL não for encontrada, o painel informa que o plugin não está instalado e mostra o caminho esperado.
+Quando o ETS2 está fechado, o painel verifica a pasta do jogo e mostra **PLUGIN INSTALADO** com a indicação curta “ETS2 desconectado — abra o jogo para conectar”; quando o jogo e o plugin conectam, o indicador fica verde. Se a DLL não for encontrada, o painel avisa que o plugin não está instalado. O ícone do ônibus identifica o instalador, o aplicativo, a janela e o atalho na Área de Trabalho.
 
-Se o painel ficar em **AGUARDANDO ETS2 E PLUGIN SCS**, verifique se o jogo está aberto, se `scs-telemetry.dll` está na pasta correta e se o plugin foi carregado. A DLL é um componente separado instalado na pasta de plugins do jogo e não está embutida no executável do painel. O aplicativo só lê o bloco de memória do plugin; ele não injeta código no jogo nem altera seus arquivos.
+Se o painel mostrar **PLUGIN NÃO ENCONTRADO**, confira se `scs-telemetry.dll` está na pasta acima e reinicie o aplicativo. Se mostrar **PLUGIN INSTALADO** mas o ETS2 estiver desconectado, abra ou reinicie o jogo. A DLL é um componente separado e o aplicativo só lê a memória publicada por ela; não injeta código nem altera os arquivos do jogo.
 
 ## Formatação de cidades
 

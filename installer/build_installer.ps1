@@ -57,7 +57,7 @@ try {
 
     & py -3.15 -m PyInstaller @commonArguments `
         "--distpath" $payload "--name" "RodoviariaETS2" "--icon" $iconPath `
-        "--add-data" "$iconPath;." `
+        "--add-data" "$iconPath;." "--add-data" "$imagePath;." `
         (Join-Path $projectRoot "app_rodoviaria.py")
     if ($LASTEXITCODE -ne 0) {
         throw "Falha ao compilar o aplicativo principal."

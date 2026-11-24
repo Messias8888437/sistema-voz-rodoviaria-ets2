@@ -173,10 +173,8 @@ class AppRodoviaria:
         self.status = tk.StringVar(value="PRONTO PARA ANUNCIAR")
         self.last_call = tk.StringVar(value="Nenhuma chamada realizada nesta sessão")
         self.audio_status = tk.StringVar()
-        self.telemetry_status = tk.StringVar(value="PROCURANDO PLUGIN SCS...")
-        self.telemetry_details = tk.StringVar(
-            value="Abra o ETS2 com o plugin SCS scs-telemetry.dll (RenCloud) ativo."
-        )
+        self.telemetry_status = tk.StringVar(value="VERIFICANDO PLUGIN...")
+        self.telemetry_details = tk.StringVar(value="Verificando a instalação do plugin e do ETS2.")
         self.plugin_path = find_telemetry_plugin()
         self.telemetry_reader = TelemetryReader()
         self._telemetry_snapshot: TelemetrySnapshot | None = None
@@ -219,14 +217,28 @@ class AppRodoviaria:
     def build_ui(self) -> None:
         header = tk.Frame(self.root, bg=BG)
         header.pack(fill="x", padx=28, pady=(20, 14))
-        tk.Label(header, text="CENTRAL DE EMBARQUE", bg=BG, fg=FG, font=("Segoe UI", 19, "bold")).pack(anchor="w")
-        tk.Label(header, text="ETS2 1.62  •  MAPAS BRASILEIROS  •  SISTEMA DE VOZ", bg=BG, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        brand = tk.Frame(header, bg=BG)
+        brand.pack(side="left", fill="x", expand=True)
+        logo_path = PASTA / "RodoviariaETS2.png"
+        if not logo_path.is_file():
+            logo_path = Path(__file__).resolve().parent / "installer" / "RodoviariaETS2.png"
+        if logo_path.is_file():
+            self.brand_icon = tk.PhotoImage(file=str(logo_path))
+            if self.brand_icon.width() > 68:
+                self.brand_icon = self.brand_icon.subsample(
+                    max(1, (self.brand_icon.width() + 67) // 68)
+                )
+            tk.Label(brand, image=self.brand_icon, bg=BG).pack(side="left", padx=(0, 12))
+        title_block = tk.Frame(brand, bg=BG)
+        title_block.pack(side="left", anchor="center", pady=6)
+        tk.Label(title_block, text="CENTRAL DE EMBARQUE", bg=BG, fg=FG, font=("Segoe UI", 18, "bold")).pack(anchor="w")
+        tk.Label(title_block, text="ETS2 1.62  •  MAPAS BRASILEIROS  •  SISTEMA DE VOZ", bg=BG, fg=ACCENT, font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(3, 0))
         profile_box = tk.Frame(header, bg=BG)
         profile_box.pack(side="right", anchor="e", padx=(12, 0))
         tk.Label(profile_box, text="PERFIL DE ANÚNCIO", bg=BG, fg=MUTED, font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 5))
         profile_chooser = ttk.Combobox(
             profile_box, textvariable=self.profile, values=list(PERFIS),
-            state="readonly", style="Dark.TCombobox", width=42,
+            state="readonly", style="Dark.TCombobox", width=36,
         )
         profile_chooser.pack(anchor="e")
         profile_chooser.bind("<<ComboboxSelected>>", self.change_profile)
@@ -382,8 +394,8 @@ class AppRodoviaria:
             if self.plugin_path:
                 self.set_telemetry_state(
                     "installed",
-                    "PLUGIN INSTALADO • ETS2 SEM CONEXÃO",
-                    f"DLL encontrada em {self.plugin_path}. Abra ou reinicie o ETS2.\n{error}",
+                    "PLUGIN INSTALADO",
+                    "ETS2 desconectado — abra o jogo para conectar.",
                 )
             else:
                 self.set_telemetry_state(
@@ -402,9 +414,8 @@ class AppRodoviaria:
                 if self.plugin_path:
                     self.set_telemetry_state(
                         "installed",
-                        "PLUGIN INSTALADO • AGUARDANDO ETS2",
-                        f"scs-telemetry.dll encontrada em:\n{self.plugin_path}\n"
-                        "Inicie o ETS2 para conectar a telemetria.",
+                        "PLUGIN INSTALADO",
+                        "ETS2 desconectado — abra o jogo para conectar.",
                     )
                 else:
                     expected_path = (
@@ -417,8 +428,7 @@ class AppRodoviaria:
                     self.set_telemetry_state(
                         "missing",
                         "PLUGIN NÃO INSTALADO",
-                        f"Não encontrei {PLUGIN_NAME}. Instale o plugin em:\n"
-                        f"{expected_path}",
+                        f"Não encontrei {PLUGIN_NAME}. Caminho: {expected_path}",
                     )
             else:
                 self.update_telemetry(snapshot)
